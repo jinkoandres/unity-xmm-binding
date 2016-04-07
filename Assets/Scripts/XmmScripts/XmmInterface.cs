@@ -74,7 +74,10 @@ public class XmmInterface : MonoBehaviour {
 
 		sw = new Stopwatch();
 		sw.Start();
+		
 		proc = new InputProcessingChain(128, 16);
+		phrase = new float[0];
+		desc = new float[0];
 
 
 		Input.gyro.enabled = true;
@@ -166,7 +169,7 @@ public class XmmInterface : MonoBehaviour {
 
 				Marshal.FreeHGlobal(unmanagedPhrase);
 
-				train(1);
+				train(1); // mixtures with 1 gaussian
 				setLikelihoodWindow(3);
 				//lastPhrase = Marshal.PtrToStringAnsi(getLastPhrase());
 				//lastPhrase = Marshal.PtrToStringAnsi(getModel());
@@ -182,7 +185,7 @@ public class XmmInterface : MonoBehaviour {
 	}
 
 	void Destroy() {
-		// eventually free memory
+		// eventually free some memory here (obtained from Marshaling for example)
 	}
 	
 	void Update () {

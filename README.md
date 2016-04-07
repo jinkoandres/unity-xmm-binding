@@ -2,7 +2,7 @@
 
 This repository is a Unity 5 project showing a simple use case of the XMM library.
 It contains a folder containing XMM as a native plugin project for Android.
-The native plugin is already compiled and the apk file is also provided for convenience.
+The native plugin is already compiled and the apk file is provided for convenience.
 
 ## Compilation and installation
 
