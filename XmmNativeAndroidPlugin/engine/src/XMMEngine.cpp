@@ -14,6 +14,7 @@ static float *likelihoods;
 static std::string likeliest;
 static std::string sp;
 static std::string sm;
+static std::string sts;
 static const char *lastPhrase;
 
 //================================================================//
@@ -72,15 +73,6 @@ const char **getSetLabels() {
 }
 //*/
 
-void clearSet() {
-	x.clearSet();
-}
-
-void clearLabel(const char *label) {
-	std::string l(label);
-	x.clearLabel(l);
-}
-
 //void trainModels(const char **labels, int nLabels, const char **colNames, int nCols, int nGaussians) {
 void train(int nbOfGaussians) {
 	x.setNbOfGaussians(nbOfGaussians);
@@ -91,17 +83,38 @@ int getNbOfModels() {
 	return x.getNbOfModels();
 }
 
-const char *getModel() {
-	// let's see this later
-	sm = x.getModel();
+const char *getModels() {
+	sm = x.getModels();
 	return sm.c_str();
 }
 
-/*
-void setModel(const char *sm) {
-	// let's see this later
+void setModels(const char *m) {
+	sm = std::string(m);
+	x.setModels(sm);
 }
-//*/
+
+void clearModels() {
+	x.clearModels();
+}
+
+const char *getTrainingSet() {
+	sts = x.getTrainingSet();
+	return sts.c_str();
+}
+
+void setTrainingSet(const char *ts) {
+	sts = std::string(ts);
+	x.setTrainingSet(sts);
+}
+
+void clearTrainingSet() {
+	x.clearTrainingSet();
+}
+
+void clearLabel(const char *label) {
+	std::string l(label);
+	x.clearLabel(l);
+}
 
 // etc...
 

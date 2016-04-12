@@ -8,17 +8,24 @@ extern "C" {
 
 	//const char **getSetLabels();
 
-	void clearSet();
-
-	void clearLabel(const char *label);
-
 	void train(int nbOfGaussians);
 
 	int getNbOfModels();
 
-	const char *getModel();
+	const char *getModels();
 
-	//void setModel(const char *sm); // see later
+	void setModels(const char *sm);
+
+	void clearModels();
+
+	const char *getTrainingSet();
+
+	void setTrainingSet(const char *sts);
+
+	void clearTrainingSet();
+
+	void clearLabel(const char *label);
+
 
 
 	void setLikelihoodWindow(int w);

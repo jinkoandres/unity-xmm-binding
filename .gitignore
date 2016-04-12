@@ -1,3 +1,5 @@
 .DS_Store
+Temp/
+Library/ShaderCache/
 XmmNativeAndroidPlugin/obj/
-XmmNativeAndroidPlugin/engine/xmm
+XmmNativeAndroidPlugin/engine/xmm/

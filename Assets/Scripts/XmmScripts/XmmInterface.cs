@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System;
+using System.IO; // File operations
 using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
@@ -26,8 +27,30 @@ public class XmmInterface : MonoBehaviour {
 	[DllImport ("XMMEngine", EntryPoint = "getNbOfModels")]
 	private static extern int getNbOfModels();
 
-	[DllImport ("XMMEngine", EntryPoint = "getModel")]
-	private static extern IntPtr getModel();
+	//========= XMM import / export : (TODO implement this in the lib)
+
+	[DllImport ("XMMEngine", EntryPoint = "getModels")]
+	private static extern IntPtr getModels();
+
+	[DllImport ("XMMEngine", EntryPoint = "setModels")]
+	private static extern void setModels(string smodels);
+
+	[DllImport ("XMMEngine", EntryPoint = "clearModels")]
+	private static extern void clearModels();
+
+	[DllImport ("XMMEngine", EntryPoint = "getTrainingSet")]
+	private static extern IntPtr getTrainingSet();
+
+	[DllImport ("XMMEngine", EntryPoint = "setTrainingSet")]
+	private static extern void setTrainingSet(string strainingset);
+
+	[DllImport ("XMMEngine", EntryPoint = "clearTrainingSet")]
+	private static extern void clearTrainingSet();
+
+	[DllImport ("XMMEngine", EntryPoint = "clearLabel")]
+	private static extern void clearLabel(string label);
+
+	//======== use XMM library :
 
 	[DllImport ("XMMEngine", EntryPoint = "setLikelihoodWindow")]
 	private static extern void setLikelihoodWindow(int w);
@@ -55,18 +78,28 @@ public class XmmInterface : MonoBehaviour {
 	bool rec;
 	bool newPhrase;
 	public Button AddButton;
+	public Button ClearButton;
+	public Button ClearCurrentButton;
 	public Text UIText;
+	public Text DebugText;
 
 
 	List<float> phraseList;
 	float[] phrase;
 	float[] desc;
+	IntPtr unmanagedDesc;
 	String[] colNames;
 	String lastPhrase;
-	//float[] obs;
-	IntPtr unmanagedDesc;
 	String likeliest;
+	// training / filtering parameters :
+	int nbOfGaussians;
+	int likelihoodWindow;
+
 	bool useLocation;
+
+	// for debug :
+	string smodels;
+	string strainingset;
 
 	//======================== methods ======================//
 
@@ -74,14 +107,42 @@ public class XmmInterface : MonoBehaviour {
 
 		sw = new Stopwatch();
 		sw.Start();
+
+		nbOfGaussians = 1;
+		likelihoodWindow = 3;
 		
 		proc = new InputProcessingChain(128, 16);
+
+		// !!! set WriteAccess to "External (SDCard)" in Edit > Project Settings > Player > Other Settings !!!
+		try {
+			// NOT USED :
+			string modelsPath = Application.persistentDataPath + "/models.json";
+			if(File.Exists(modelsPath)) {
+				smodels = File.ReadAllText(modelsPath);
+				// !!!! THIS IS BUGGY FOR NOW IN XMM !!!!
+				// setModels(smodels);
+				// setLikelihoodWindow(3);
+			}
+			// USED :
+			string setPath = Application.persistentDataPath + "/trainingset.json";
+			if(File.Exists(setPath)) {
+				strainingset = File.ReadAllText(setPath);
+				setTrainingSet(strainingset);
+				train(nbOfGaussians); // mixtures with 1 gaussian
+				setLikelihoodWindow(likelihoodWindow);
+			}
+		}
+		catch (Exception e) { // any exception
+			smodels = "error loading models";
+			strainingset = "error loading training set";
+		}
+
 		phrase = new float[0];
 		desc = new float[0];
 
-
 		Input.gyro.enabled = true;
 
+		// TODO : add location data to training features
 		if (!Input.location.isEnabledByUser) {
 			useLocation = false;
 		} else {
@@ -104,7 +165,10 @@ public class XmmInterface : MonoBehaviour {
 		GameObject recGOButton = GameObject.Find("RecButton");
 		GameObject labelsGODropdown = GameObject.Find("LabelsDropdown");
 		GameObject addGOButton = GameObject.Find("AddButton");
+		GameObject clearGOButton = GameObject.Find("ClearButton");
+		GameObject clearCurrentGOButton = GameObject.Find("ClearCurrentButton");
 		GameObject uiGOText = GameObject.Find("UIText");
+		GameObject debugGOText = GameObject.Find("DebugText");
 
 		//================== SETUP RECBUTTON ==================//
 		RecButton = recGOButton.GetComponent<Button>();
@@ -121,15 +185,15 @@ public class XmmInterface : MonoBehaviour {
 			cb.pressedColor = Color.white;
 
 			if(rec) {
+				// START REC
 				phraseList = new List<float>();
 				cb.highlightedColor = Color.red;
-				//print("start rec");
 			} else {
+				// STOP REC
 				cb.highlightedColor = Color.white;
 				if(phraseList.Count > 0) {
 					newPhrase = true;
 				}
-				//print("stop rec");
 			}
 			RecButton.colors = cb;
 		});
@@ -169,17 +233,52 @@ public class XmmInterface : MonoBehaviour {
 
 				Marshal.FreeHGlobal(unmanagedPhrase);
 
-				train(1); // mixtures with 1 gaussian
-				setLikelihoodWindow(3);
-				//lastPhrase = Marshal.PtrToStringAnsi(getLastPhrase());
-				//lastPhrase = Marshal.PtrToStringAnsi(getModel());
+				train(nbOfGaussians);
+				setLikelihoodWindow(likelihoodWindow);
 			}
 		});
 
+		//================= SETUP CLEARBUTTON ==================//
+		ClearButton = clearGOButton.GetComponent<Button>();
+		ClearButton.transform.position = new Vector3(UISpacer, Screen.height - UISpacer - 3 * UIHeight, 0);
+		ClearButton.transform.localScale = new Vector3(UIScale, UIScale, 1);
+		
+		ClearButton.onClick.AddListener(delegate {
+			string modelsPath = Application.persistentDataPath + "/models.json";
+			if(File.Exists(modelsPath)) {
+				File.Delete(modelsPath);
+			}
+			string setPath = Application.persistentDataPath + "/trainingset.json";
+			if(File.Exists(setPath)) {
+				File.Delete(setPath);
+			}
+			clearTrainingSet();
+			clearModels();
+			//DebugText.text = "training set and models cleared";
+		});		
+
+		//============== SETUP CLEARCURRENTBUTTON ==============//
+		ClearCurrentButton = clearCurrentGOButton.GetComponent<Button>();
+		ClearCurrentButton.transform.position = new Vector3(UISpacer, Screen.height - UISpacer - 4 * UIHeight, 0);
+		ClearCurrentButton.transform.localScale = new Vector3(UIScale, UIScale, 1);
+		
+		ClearCurrentButton.onClick.AddListener(delegate {
+			clearLabel(label);
+			train(nbOfGaussians);
+			setLikelihoodWindow(likelihoodWindow);
+		});		
+
 		//================== SETUP UITEXT ===================//
 		UIText = uiGOText.GetComponent<Text>();
-		UIText.transform.position = new Vector3(UISpacer, Screen.height - UISpacer - 3 * UIHeight, 0);
+		UIText.transform.position = new Vector3(UISpacer, Screen.height - UISpacer - 5 * UIHeight, 0);
 		UIText.text = "Unknown";
+
+		//================= SETUP DEBUGTEXT =================//
+		DebugText = debugGOText.GetComponent<Text>();
+		DebugText.transform.position = new Vector3(UISpacer, Screen.height - UISpacer - 6 * UIHeight, 0);
+		//DebugText.transform.localScale = new Vector3(UIScale, UIScale, 1); // -> set position and size mannually in editor
+		//DebugText.text = smodels + "\n" + strainingset;
+		DebugText.text = "";
 
 		phraseList = new List<float>();
 	}
@@ -193,6 +292,12 @@ public class XmmInterface : MonoBehaviour {
 		//http://answers.unity3d.com/questions/182265/how-to-quit-from-android.html
 	    if (Input.GetKey(KeyCode.Escape)) {
 	        if (Application.platform == RuntimePlatform.Android) {
+	        	// DO STUFF BEFORE QUITTING
+				strainingset = Marshal.PtrToStringAnsi(getTrainingSet());
+				File.WriteAllText(Application.persistentDataPath + "/trainingset.json", strainingset);
+				smodels = Marshal.PtrToStringAnsi(getModels());
+				File.WriteAllText(Application.persistentDataPath + "/models.json", smodels);
+				// QUIT !
 	    	    Application.Quit();
 	    	}
 	    }
@@ -205,15 +310,15 @@ public class XmmInterface : MonoBehaviour {
 
 			IntPtr likeliestPtr = getLikeliest();
 			likeliest = Marshal.PtrToStringAnsi(likeliestPtr);
-			//likeliest = "Unknown";
+
 			Marshal.FreeHGlobal(unmanagedDesc);	    	
 	    }
 
 	    UIText.text = likeliest;
-	    //UIText.text = getNbOfModels() + " " + likeliest + " " + lastPhrase;
 	}
 
 	void FixedUpdate() {
+
 		//print(sw.ElapsedMilliseconds);
      	sw.Reset();
 		sw.Start();
@@ -225,13 +330,6 @@ public class XmmInterface : MonoBehaviour {
 
 		if(proc.hasNewFrame()) {
 
-			// float[] lf = proc.getLastFrame();
-			// desc = new float[lf.Length];
-			// for(int i=0; i<desc.Length; i++) {
-			// 	desc[i] = lf[i];
-			// }
-
-			//float[] desc = proc.getLastFrame();
 			desc = proc.getLastFrame();
 
 			if(rec) {
@@ -245,12 +343,12 @@ public class XmmInterface : MonoBehaviour {
 
 	void OnGUI() {
 
-        GUI.backgroundColor = new Color(0f, 0f, 0f, 1f);
-        if(rec) {
-	        GUI.contentColor = new Color(1f, 0f, 0f, 1f);
-        } else {
-            GUI.contentColor = new Color(1f, 1f, 1f, 1f);
-        }
+	// 	GUI.backgroundColor = new Color(0f, 0f, 0f, 1f);
+	// 	if(rec) {
+	// 		GUI.contentColor = new Color(1f, 0f, 0f, 1f);
+	// 	} else {
+	// 		GUI.contentColor = new Color(1f, 1f, 1f, 1f);
+	// 	}
 
 		// recToggle = GUI.Toggle(new Rect(10,10,100,50), recToggle, "REC", xButtonStyle);
 		// if(recToggle != oldRecToggle) {
@@ -261,7 +359,7 @@ public class XmmInterface : MonoBehaviour {
 		// 	}
 		// }
 
-		GUI.contentColor = new Color(1f, 1f, 1f, 1f);
+		// GUI.contentColor = new Color(1f, 1f, 1f, 1f);
 
 		/*
 		//if(GUI.Button(new Rect(10,70,100,50), "ADD", xButtonStyle)) {

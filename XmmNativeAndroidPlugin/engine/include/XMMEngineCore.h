@@ -4,17 +4,20 @@ class XMMEngineCore {
 
 private:
 	xmm::TrainingSet set;
+	std::vector<int> freeList;
 	xmm::GMM gmm;
 	//xmm::HierarchicalHMM hhmm;
 
 public:
-	XMMEngineCore() {};
-	~XMMEngineCore() {};
+	XMMEngineCore() {
+		// set = new xmm::TrainingSet();
+		// gmm = new xmm::GMM();
+	};
+	~XMMEngineCore() {
+		// delete set;
+		// delete gmm;
+	};
 
-	void addPhrase(std::string sp);
-	int getSetSize();
-	void clearSet();
-	void clearLabel(std::string label);
 	void setNbOfGaussians(int n);
 	void train();
 
@@ -24,6 +27,14 @@ public:
 	std::string getLikeliest();
 
 	int getNbOfModels();
-	std::string getModel();
-	void setModel(std::string sm);
+	std::string getModels();
+	void setModels(std::string sm);
+	void clearModels();
+
+	std::string getTrainingSet();
+	void setTrainingSet(std::string sts);
+	void clearTrainingSet();
+	void clearLabel(std::string label);
+	void addPhrase(std::string sp);
+	int getSetSize();
 };
