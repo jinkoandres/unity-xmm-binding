@@ -11,7 +11,63 @@ using System.Text;
 public class XmmInterface : MonoBehaviour {
 
 	//================== XMM lib functions ==================//
+	#if UNITY_IOS
+	[DllImport ("__Internal")]
+	private static extern float addPhrase(String label, String[] colNames, int nCols, IntPtr phrase, int phraseSize);
 
+	[DllImport ("__Internal")]
+	private static extern int getSetSize();
+
+	[DllImport ("__Internal")]
+	private static extern IntPtr getLastPhrase();
+
+	[DllImport ("__Internal")]
+	private static extern void train(int nGaussians);
+
+	[DllImport ("__Internal")]
+	private static extern int getNbOfModels();
+
+	//========= XMM import / export : (TODO implement this in the lib)
+
+	[DllImport ("__Internal")]
+	private static extern IntPtr getModels();
+
+	[DllImport ("__Internal")]
+	private static extern void setModels(string smodels);
+
+	[DllImport ("__Internal")]
+	private static extern void clearModels();
+
+	[DllImport ("__Internal")]
+	private static extern IntPtr getTrainingSet();
+
+	[DllImport ("__Internal")]
+	private static extern void setTrainingSet(string strainingset);
+
+	[DllImport ("__Internal")]
+	private static extern void clearTrainingSet();
+
+	[DllImport ("__Internal")]
+	private static extern void clearLabel(string label);
+
+	//======== use XMM library :
+
+	[DllImport ("__Internal")]
+	private static extern void setLikelihoodWindow(int w);
+
+	[DllImport ("__Internal")]
+	private static extern void filter(IntPtr obs, int obsSize);
+
+	[DllImport("__Internal")]
+	private static extern IntPtr getLikeliest();
+	/*
+	[DllImport ("__Internal")]
+	private static extern int setString(string s);
+
+	[DllImport ("__Internal")]
+	private static extern int getString(StringBuilder s);
+	*/
+	#else 
 	[DllImport ("XMMEngine", EntryPoint = "addPhrase")]
 	private static extern float addPhrase(String label, String[] colNames, int nCols, IntPtr phrase, int phraseSize);
 
@@ -59,14 +115,15 @@ public class XmmInterface : MonoBehaviour {
 	private static extern void filter(IntPtr obs, int obsSize);
 
 	[DllImport("XMMEngine", EntryPoint = "getLikeliest")]
-	private static extern IntPtr getLikeliest();
+	private static extern IntPtr 
+	();
 	
 	[DllImport ("XMMEngine", EntryPoint = "setString")]
 	private static extern int setString(string s);
 
 	[DllImport ("XMMEngine", EntryPoint = "getString")]
 	private static extern int getString(StringBuilder s);
-
+	#endif
 	//======================= variables ======================//
 
 	Stopwatch sw;
